@@ -1,0 +1,88 @@
+# AI-Enabled Skill Intelligence & Learning Platform (Prototype)
+
+**Organization:** MoSPI — Data Informatics & Innovation Division (DIID)
+**Theme:** Smart Education — Capacity building for India's Official Statistical System
+
+A working prototype of the platform described in the problem statement:
+- AI-based competency assessment & automated skill-gap analysis
+- Personalized learning recommendations (mock iGOT Karmayogi + NSSTA TPAC course catalog)
+- AI-powered MCQ / quiz generation from uploaded learning material (.txt / .pdf / .docx)
+- Employee dashboard (competency radar, gaps, recommendations, enrollments)
+- Admin dashboard (org-wide readiness, top skill gaps, training effectiveness)
+- Admin user management — add, edit, and delete officials/admin accounts
+  (Admin Analytics → Manage Users)
+
+## Tech stack
+- Backend: Python 3.10+, Flask, Flask-SQLAlchemy (SQLite)
+- Recommendation engine: scikit-learn (TF-IDF + cosine similarity)
+- MCQ generation: built-in offline rule-based NLP engine, with optional
+  upgrade to Anthropic Claude for higher-quality LLM-generated questions
+- Frontend: Server-rendered Jinja2 templates, Bootstrap 5, Chart.js (no build step)
+
+## Setup (VS Code / local)
+
+```bash
+# 1. Create and activate a virtual environment
+python -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
+
+# 2. Install dependencies
+pip install -r requirements.txt
+
+# 3. (Optional) enable LLM-based quiz generation
+export ANTHROPIC_API_KEY=sk-ant-...      # Windows (PowerShell): $env:ANTHROPIC_API_KEY="sk-ant-..."
+
+# 4. Run the app
+python app.py
+```
+
+Open **http://localhost:5000** in your browser. The database (SQLite) and five
+demo users (four officials + one admin) are auto-created on first run — no
+extra setup needed. Click any user on the landing page to "log in" (this is a
+prototype auth-lite switcher; swap in SSO/RBAC for production per the DIID spec).
+
+## Project structure
+
+```
+skill_intelligence_platform/
+├── app.py                     # Flask app & all routes
+├── requirements.txt
+├── data/
+│   ├── competency_framework.json   # role → required skill levels (4 domains)
+│   └── igot_courses.json           # mock iGOT Karmayogi / NSSTA TPAC catalog
+├── modules/
+│   ├── models.py               # SQLAlchemy models
+│   ├── competency_engine.py    # skill-gap computation & readiness scoring
+│   ├── recommender.py          # TF-IDF content-based course recommender
+│   └── quiz_generator.py       # text extraction + MCQ generation (rule-based / LLM)
+├── templates/                  # Jinja2 + Bootstrap 5 UI
+├── static/css/style.css
+└── uploads/                    # uploaded learning material (gitignored)
+```
+
+## How each requirement maps to the code
+
+| Problem statement requirement | Where it's implemented |
+|---|---|
+| Competency profile from designation/role/experience | `modules/models.py` (`User`, `Competency`), `templates/profile.html` |
+| Skill-gap analysis vs framework | `modules/competency_engine.py` |
+| 4 competency domains (Statistical/Technical/Digital Gov/Behavioural) | `data/competency_framework.json`, `DOMAIN_MAP` |
+| iGOT Karmayogi + NSSTA TPAC integration | `data/igot_courses.json` (mock catalog — replace with live API calls), `modules/recommender.py` |
+| Personalized learning pathways | `recommend_courses()` in `modules/recommender.py` |
+| AI-powered MCQ/quiz generation from uploaded material | `modules/quiz_generator.py`, routes `/quiz/generate`, `/quiz/<id>` |
+| Instant evaluation + explanations | `/quiz/<id>/submit` route, `templates/quiz_result.html` |
+| Employee dashboard | `templates/employee_dashboard.html` |
+| Admin dashboard (org-wide analytics, predictive needs) | `templates/admin_dashboard.html` |
+| Secure, scalable web platform | Flask + SQLAlchemy ORM (swap SQLite → PostgreSQL for production), role-based routes (`is_admin`) |
+
+## Extending this prototype toward production
+
+- **Real iGOT Karmayogi integration:** replace `modules/recommender.py`'s
+  `load_courses()` with live calls to the iGOT Karmayogi course-catalog and
+  enrollment APIs (the mock JSON mirrors the shape you'd get back).
+- **LLM quiz generation:** already wired via `modules/quiz_generator.py` —
+  just set `ANTHROPIC_API_KEY`. Swap the `model` parameter or provider as needed.
+- **Auth:** replace the demo user-switcher (`/login/<id>`) with SSO
+  (e.g. SAML/OIDC against the government identity provider) and proper RBAC.
+- **Scale:** move from SQLite to PostgreSQL, containerize with Docker, and
+  put the app behind Gunicorn/Nginx for production deployment.
